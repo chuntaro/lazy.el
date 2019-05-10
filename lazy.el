@@ -130,6 +130,26 @@
 (defsubst lz-rest (stream)
   (cdr (lz-force stream)))
 
+(defun lz-append (&rest streams)
+  (if (null streams)
+      (lz-empty)
+    (lz-lazy
+     (let ((first (pop streams)))
+       (while (and (lz-empty-p first) streams)
+         (setq first (pop streams)))
+       (if (lz-empty-p first)
+           (lz-empty)
+         (lz-cons (lz-first first)
+                  (if streams (apply #'lz-append (lz-rest first) streams)
+                    (lz-rest first))))))))
+
+(defmacro lz-pop (stream)
+  (unless (symbolp stream)
+    (error "STREAM must be a symbol"))
+  `(prog1
+       (lz-first ,stream)
+     (setq ,stream (lz-rest ,stream))))
+
 (defun lz-elt (stream n)
   (while (> n 0)
     (setq stream (lz-rest stream))
@@ -215,12 +235,29 @@
        (lz-cons (lz-first stream)
                 (lz-rest stream))))))
 
+(defun lz-subseq (stream start &optional end)
+  (when (or (< start 0) (and end (< end 0)))
+    (error "lz-subseq: only non-negative indexes allowed for streams"))
+  (let ((stream-from-start (lz-drop stream start)))
+    (if end
+        (lz-take stream-from-start (- end start))
+      stream-from-start)))
+
 (defun lz-map (function stream)
   (lz-lazy
    (if (lz-empty-p stream)
        (lz-empty)
      (lz-cons (funcall function (lz-first stream))
               (lz-map function (lz-rest stream))))))
+
+(defun lz-mapn (function stream &rest streams)
+  (setq streams (cons stream streams))
+  (lz-lazy
+   (if (not (cl-every (lambda (x) (not (lz-empty-p x)))
+                      streams))
+       (lz-empty)
+     (lz-cons (apply function (mapcar #'lz-first streams))
+              (apply #'lz-mapn function (mapcar #'lz-rest streams))))))
 
 (defun lz-filter (pred stream)
   (lz-lazy
