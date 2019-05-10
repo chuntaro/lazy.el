@@ -1,7 +1,7 @@
 # lazy.el
 Lazy evaluation library for Emacs Lisp
 
-Implementation of `SRFI 45' in Emacs Lisp and utility functions.
+Implementation of `SRFI 45' in Emacs Lisp and Stream functions.
 
 SRFI 45  
 https://srfi.schemers.org/srfi-45/srfi-45.html  
