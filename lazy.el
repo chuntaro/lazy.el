@@ -168,15 +168,16 @@
     (nreverse list)))
 
 (defun lz-range (&optional start end step)
+  (unless start (setq start 0))
+  (and end (> start end) (setq end start))
+  (unless step (setq step 1))
   (lz-lazy
-   (progn
-     (unless start (setq start 0))
-     (unless step (setq step 1))
-     (if (equal start end)
-         (lz-empty)
-       (lz-cons start (lz-range (+ start step) end step))))))
+   (if (and end (= start end))
+       (lz-empty)
+     (lz-cons start (lz-range (+ start step) end step)))))
 
 (defun lz-take (stream n)
+  (when (< n 0) (setq n 0))
   (lz-lazy
    (if (or (zerop n)
            (lz-empty-p stream))
@@ -185,6 +186,7 @@
               (lz-take (lz-rest stream) (1- n))))))
 
 (defun lz-drop (stream n)
+  (when (< n 0) (setq n 0))
   (lz-lazy
    (progn
      (while (not (or (lz-empty-p stream)
