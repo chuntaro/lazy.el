@@ -37,27 +37,31 @@
 ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(defun lz-box (x) (list x))
+(defalias 'lz-unbox 'car)
+(defalias 'lz-setbox 'setcar)
+
 (defmacro lz-lazy (exp)
-  `(list (cons 'lz-lazy (lambda () ,exp))))
+  `(lz-box (cons 'lz-lazy (lambda () ,exp))))
 
 (defsubst lz-eager (x)
-  (list (cons 'lz-eager x)))
+  (lz-box (cons 'lz-eager x)))
 
 (defmacro lz-delay (exp)
   `(lz-lazy (lz-eager ,exp)))
 
 (defun lz-force (promise)
-  (while (let ((content (car promise)))
+  (while (let ((content (lz-unbox promise)))
            (cl-case (car content)
              (lz-eager (setq promise (cdr content))
                        nil)
-             (lz-lazy (let* ((promise* (funcall (cdr content))) ; *
-                             (content (car promise)))           ; *
-                        (unless (eq (car content) 'lz-eager)
-                          (setcar content (caar promise*))
-                          (setcdr content (cdar promise*))
-                          (setcar promise* content)))
-                      t))))
+             (lz-lazy  (let* ((promise* (funcall (cdr content)))
+                              (content  (lz-unbox promise)))    ; *
+                         (if (not (eq (car content) 'lz-eager)) ; *
+                             (progn (setcar content (car (lz-unbox promise*)))
+                                    (setcdr content (cdr (lz-unbox promise*)))
+                                    (lz-setbox promise* content))))
+                       t))))
   promise)
 
 ;; (*) These two lines re-fetch and check the original promise in case
