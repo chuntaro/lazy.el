@@ -144,9 +144,10 @@
     len))
 
 (defun lz-stream-p (stream)
-  (if (memq (car (car-safe stream)) '(lz-lazy lz-eager))
-      t
-    nil))
+  (and (consp stream)
+       (consp (car stream))
+       (memq (caar stream) '(lz-lazy lz-eager))
+       t))
 
 (defun lz-do (function stream)
   (while (not (lz-empty-p stream))
