@@ -153,6 +153,8 @@
     (funcall function (lz-first stream))
     (setq stream (lz-rest stream))))
 
+(defalias 'lz-each #'lz-do)
+
 (defmacro lz-dostream (spec &rest body)
   (declare (indent 1))
   `(lz-do (lambda (,(car spec))
