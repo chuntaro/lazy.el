@@ -317,5 +317,12 @@
 
 (defun lz-primes ()
   (lz--sieve (lz-range 2)))
+
+(defun lz-fibonacci ()
+  (lz-lazy
+   (cl-labels ((rec (a b)
+                    (lz-cons (+ a b)
+                             (rec b (+ a b)))))
+     (lz-cons 0 (lz-cons 1 (rec 0 1))))))
 (provide 'lazy)
 ;;; lazy.el ends here
