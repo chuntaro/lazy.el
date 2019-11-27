@@ -49,3 +49,7 @@
 (ert-deftest lz-test-fibonacci ()
   (should (= (lz-elt (lz-fibonacci) 89)
              1779979416004714189)))
+
+(ert-deftest lz-test-cl-loop ()
+  (should (equal (cl-loop repeat 10 for i lazy-by (lz-primes) collect i)
+                 '(2 3 5 7 11 13 17 19 23 29))))

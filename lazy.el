@@ -324,5 +324,34 @@
                     (lz-cons (+ a b)
                              (rec b (+ a b)))))
      (lz-cons 0 (lz-cons 1 (rec 0 1))))))
+
+;; `cl-loop' support
+;;
+;; (cl-loop repeat 10 for i lazy-by (lz-primes) collect i)
+;; => (2 3 5 7 11 13 17 19 23 29)
+
+(defvar cl--loop-args)
+
+(defmacro lz--advance-for (conscell)
+  `(progn
+     (setcar ,conscell (lz-car (cdr ,conscell)))
+     (setcdr ,conscell (lz-cdr (cdr ,conscell)))
+     ,conscell))
+
+(defmacro lz--initialize-for (stream)
+  (let ((cs (gensym "lz--loop-temp")))
+    `(let ((,cs (cons nil ,stream)))
+       (lz--advance-for ,cs))))
+
+(defun lz--handle-loop-for (var)
+  "Support `lazy-by' in `cl-loop'."
+  (let ((stream (pop cl--loop-args)))
+    (setf cl--loop-args
+          (append `(for ,var in (lz--initialize-for ,stream)
+                        by 'lz--advance-for)
+                  cl--loop-args))))
+
+(put 'lazy-by 'cl-loop-for-handler 'lz--handle-loop-for)
+
 (provide 'lazy)
 ;;; lazy.el ends here
