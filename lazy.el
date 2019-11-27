@@ -307,5 +307,15 @@
         (throw 'lz--break elt)))
     default))
 
+(defun lz--sieve (stream)
+  "Sieve of Eratosthenes"
+  (lz-lazy
+   (lz-cons (lz-car stream)
+            (lz--sieve (lz-filter (lambda (x)
+                                    (/= 0 (% x (lz-car stream))))
+                                  (lz-cdr stream))))))
+
+(defun lz-primes ()
+  (lz--sieve (lz-range 2)))
 (provide 'lazy)
 ;;; lazy.el ends here
