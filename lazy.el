@@ -120,49 +120,54 @@
 (defmacro lz-cons (first rest)
   `(lz-delay (cons ,first ,rest)))
 
-(defsubst lz-empty ()
+(defsubst lz-nil ()
   (lz-delay nil))
 
-(defun lz-empty-p (stream)
+(defsubst lz-null (stream)
   (null (lz-force stream)))
 
-(defsubst lz-first (stream)
+(defsubst lz-car (stream)
   (car (lz-force stream)))
 
-(defsubst lz-rest (stream)
+(defsubst lz-cdr (stream)
   (cdr (lz-force stream)))
+
+(defalias 'lz-empty 'lz-nil)
+(defalias 'lz-empty-p 'lz-null)
+(defalias 'lz-first 'lz-car)
+(defalias 'lz-rest 'lz-cdr)
 
 (defun lz-append (&rest streams)
   (if (null streams)
-      (lz-empty)
+      (lz-nil)
     (lz-lazy
      (let ((first (pop streams)))
-       (while (and (lz-empty-p first) streams)
+       (while (and (lz-null first) streams)
          (setq first (pop streams)))
-       (if (lz-empty-p first)
-           (lz-empty)
-         (lz-cons (lz-first first)
-                  (if streams (apply #'lz-append (lz-rest first) streams)
-                    (lz-rest first))))))))
+       (if (lz-null first)
+           (lz-nil)
+         (lz-cons (lz-car first)
+                  (if streams (apply #'lz-append (lz-cdr first) streams)
+                    (lz-cdr first))))))))
 
 (defmacro lz-pop (stream)
   (unless (symbolp stream)
     (error "STREAM must be a symbol"))
   `(prog1
-       (lz-first ,stream)
-     (setq ,stream (lz-rest ,stream))))
+       (lz-car ,stream)
+     (setq ,stream (lz-cdr ,stream))))
 
 (defun lz-elt (stream n)
   (while (> n 0)
-    (setq stream (lz-rest stream))
+    (setq stream (lz-cdr stream))
     (setq n (1- n)))
-  (lz-first stream))
+  (lz-car stream))
 
 (defun lz-length (stream)
   (let ((len 0))
-    (while (not (lz-empty-p stream))
+    (while (not (lz-null stream))
       (setq len (1+ len)
-            stream (lz-rest stream)))
+            stream (lz-cdr stream)))
     len))
 
 (defun lz-stream-p (stream)
@@ -172,9 +177,9 @@
        t))
 
 (defun lz-do (function stream)
-  (while (not (lz-empty-p stream))
-    (funcall function (lz-first stream))
-    (setq stream (lz-rest stream))))
+  (while (not (lz-null stream))
+    (funcall function (lz-car stream))
+    (setq stream (lz-cdr stream))))
 
 (defalias 'lz-each #'lz-do)
 
@@ -196,46 +201,46 @@
   (unless step (setq step 1))
   (lz-lazy
    (if (and end (= start end))
-       (lz-empty)
+       (lz-nil)
      (lz-cons start (lz-range (+ start step) end step)))))
 
 (defun lz-take (stream n)
   (when (< n 0) (setq n 0))
   (lz-lazy
    (if (or (zerop n)
-           (lz-empty-p stream))
-       (lz-empty)
-     (lz-cons (lz-first stream)
-              (lz-take (lz-rest stream) (1- n))))))
+           (lz-null stream))
+       (lz-nil)
+     (lz-cons (lz-car stream)
+              (lz-take (lz-cdr stream) (1- n))))))
 
 (defun lz-drop (stream n)
   (when (< n 0) (setq n 0))
   (lz-lazy
    (progn
-     (while (not (or (lz-empty-p stream)
+     (while (not (or (lz-null stream)
                      (zerop n)))
        (setq n (1- n))
-       (setq stream (lz-rest stream)))
-     (if (lz-empty-p stream)
-         (lz-empty)
-       (lz-cons (lz-first stream) (lz-rest stream))))))
+       (setq stream (lz-cdr stream)))
+     (if (lz-null stream)
+         (lz-nil)
+       (lz-cons (lz-car stream) (lz-cdr stream))))))
 
 (defun lz-take-while (pred stream)
   (lz-lazy
-   (if (not (funcall pred (lz-first stream)))
-       (lz-empty)
-     (lz-cons (lz-first stream)
-              (lz-take-while pred (lz-rest stream))))))
+   (if (not (funcall pred (lz-car stream)))
+       (lz-nil)
+     (lz-cons (lz-car stream)
+              (lz-take-while pred (lz-cdr stream))))))
 
 (defun lz-drop-while (pred stream)
   (lz-lazy
    (progn
-     (while (not (or (lz-empty-p stream)
-                     (funcall pred (lz-first stream))))
-       (setq stream (lz-rest stream)))
-     (unless (lz-empty-p stream)
-       (lz-cons (lz-first stream)
-                (lz-rest stream))))))
+     (while (not (or (lz-null stream)
+                     (funcall pred (lz-car stream))))
+       (setq stream (lz-cdr stream)))
+     (unless (lz-null stream)
+       (lz-cons (lz-car stream)
+                (lz-cdr stream))))))
 
 (defun lz-subseq (stream start &optional end)
   (when (or (< start 0) (and end (< end 0)))
@@ -247,37 +252,37 @@
 
 (defun lz-map (function stream)
   (lz-lazy
-   (if (lz-empty-p stream)
-       (lz-empty)
-     (lz-cons (funcall function (lz-first stream))
-              (lz-map function (lz-rest stream))))))
+   (if (lz-null stream)
+       (lz-nil)
+     (lz-cons (funcall function (lz-car stream))
+              (lz-map function (lz-cdr stream))))))
 
 (defun lz-mapn (function stream &rest streams)
   (setq streams (cons stream streams))
   (lz-lazy
-   (if (not (cl-every (lambda (x) (not (lz-empty-p x)))
+   (if (not (cl-every (lambda (x) (not (lz-null x)))
                       streams))
-       (lz-empty)
-     (lz-cons (apply function (mapcar #'lz-first streams))
-              (apply #'lz-mapn function (mapcar #'lz-rest streams))))))
+       (lz-nil)
+     (lz-cons (apply function (mapcar #'lz-car streams))
+              (apply #'lz-mapn function (mapcar #'lz-cdr streams))))))
 
 (defun lz-filter (pred stream)
   (lz-lazy
    (progn
-     (while (not (or (lz-empty-p stream)
-                     (funcall pred (lz-first stream))))
-       (setq stream (lz-rest stream)))
-     (if (lz-empty-p stream)
-         (lz-empty)
-       (lz-cons (lz-first stream)
-                (lz-filter pred (lz-rest stream)))))))
+     (while (not (or (lz-null stream)
+                     (funcall pred (lz-car stream))))
+       (setq stream (lz-cdr stream)))
+     (if (lz-null stream)
+         (lz-nil)
+       (lz-cons (lz-car stream)
+                (lz-filter pred (lz-cdr stream)))))))
 
 (defun lz-remove (pred stream)
   (lz-filter (lambda (elt) (not (funcall pred elt)))
              stream))
 
 (defun lz-reduce (function stream initial-value)
-  (if (lz-empty-p stream)
+  (if (lz-null stream)
       initial-value
     (let ((acc initial-value))
       (lz-dostream (elt stream)
@@ -285,7 +290,7 @@
       acc)))
 
 (defun lz-reduce-while (pred function stream initial-value)
-  (if (lz-empty-p stream)
+  (if (lz-null stream)
       initial-value
     (let ((acc initial-value))
       (catch 'lz--break
